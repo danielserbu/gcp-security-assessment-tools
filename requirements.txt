@@ -1,0 +1,16 @@
+# GCP Security Assessment Tools - Requirements
+# Install with: pip install -r requirements.txt
+
+# Google Cloud API client libraries
+google-api-python-client>=2.0.0
+google-auth>=2.0.0
+google-auth-httplib2>=0.1.0
+google-auth-oauthlib>=0.5.0
+
+# Terminal colors for better output
+colorama>=0.4.6
+
+# Note: Some tools also require system dependencies:
+# - gcloud CLI (Google Cloud SDK)
+# - gsutil (included with gcloud)
+# - PowerShell (for .ps1 scripts)
