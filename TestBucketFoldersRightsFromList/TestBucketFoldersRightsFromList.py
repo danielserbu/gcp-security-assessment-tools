@@ -19,7 +19,13 @@ if not os.path.isfile(testFile):
     print("Exiting.. ")
     exit()
 
-folders = open(bucketFoldersFile).read().splitlines()
+if not os.path.isfile(bucketFoldersFile):
+    print(f"Bucket folders list file '{bucketFoldersFile}' does not exist.")
+    print("Exiting.. ")
+    exit(1)
+
+with open(bucketFoldersFile) as f:
+    folders = f.read().splitlines()
 
 for folder in folders:
     if folder.endswith("/") is False:
@@ -39,6 +45,10 @@ for folder in folders:
 unique_folders = list(set(folders))
 
 outputFolder = "output"
+# Create output folder if it doesn't exist
+if not os.path.exists(outputFolder):
+    os.makedirs(outputFolder)
+
 runTime = time.strftime("%Y-%m-%d--%H-%M")
 writeVulnerableBucketsAndFoldersOutputPath = outputFolder + "/OutputWriteVulnerableBucketsAndFolders-" + runTime + ".txt"
 deleteVulnerableBucketsAndFoldersOutputPath = outputFolder + "/OutputDeleteVulnerableBucketsAndFolders-" + runTime + ".txt"
@@ -52,29 +62,25 @@ def test_delete_rights_in_bucket_folder(folder):
     print(Style.BRIGHT + "Testing delete rights for folder " + folder)
     testFilePath = folder + testFile
     process = subprocess.Popen("gsutil rm " + testFilePath, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, shell=True)
-    output = ''
-    while True:
-        output += process.stderr.read()
-        if process.stderr.read() == '' and process.poll() != None:
-            break
+    stdoutput, stderroutput = process.communicate()
+    output = stdoutput + stderroutput
+
     vulnerableStatus = False
-    if "AccessDeniedException: 403" and "does not have storage.objects.delete access" not in output:
-        print(Fore.RED + Style.BRIGHT + "[!!!] " + folder + " is vulnerable to deletion!")
-        vulnerableStatus = True
-    else:
+    if "AccessDeniedException: 403" in output and "does not have storage.objects.delete access" in output:
         print(Fore.GREEN + Style.BRIGHT + "[OK] " + folder + " is NOT vulnerable to deletion!")
         vulnerableStatus = False
+    else:
+        print(Fore.RED + Style.BRIGHT + "[!!!] " + folder + " is vulnerable to deletion!")
+        vulnerableStatus = True
     return vulnerableStatus
         
 def test_write_rights_in_bucket_folder(folder):
     print("---------------------------------------")
     print(Style.BRIGHT + "Testing write rights for folder " + folder)
     process = subprocess.Popen("gsutil cp " + testFile + " " + folder, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, shell=True)
-    output = ''
-    while True:
-        output += process.stderr.read()
-        if process.stderr.read() == '' and process.poll() != None:
-            break
+    stdoutput, stderroutput = process.communicate()
+    output = stdoutput + stderroutput
+
     writeVulnerableStatus = False
     deleteVulnerableStatus = False
     if "Operation completed over 1 objects" in output:
@@ -82,7 +88,7 @@ def test_write_rights_in_bucket_folder(folder):
         writeVulnerableStatus = True
         # Since we could write the test file, now test for delete rights (storage.objects.delete access)
         deleteVulnerableStatus = test_delete_rights_in_bucket_folder(folder)
-    elif "Copying file" and "AccessDeniedException: 403" and "does not have storage.objects.delete access" in output:
+    elif "Copying file" in output and "AccessDeniedException: 403" in output and "does not have storage.objects.delete access" in output:
         print(Fore.YELLOW + Style.BRIGHT + "[?] The file you are trying to write is already inside the bucket and you don't have delete rights!")
     else:
         print(Fore.GREEN + Style.BRIGHT + "[OK] " + folder + " is NOT vulnerable to writing!")
